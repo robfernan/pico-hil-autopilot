@@ -1,0 +1,31 @@
+# Build directories
+build/
+bin/
+out/
+.cache/
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CMake temporary files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Submodules / Dependencies (if built in-tree)
+pico-sdk/
+FreeRTOS-Kernel/
+lvgl/
+
+# Binary & Firmware Artifacts
+*.elf
+*.bin
+*.hex
+*.uf2
+*.map

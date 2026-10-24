@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_UP:
                     case SDLK_w:
-                        state.target_pitch += 4.0f; // Pitch forward/up
+                        state.target_pitch += 6.0f;
                         if (state.target_pitch > 35.0f) state.target_pitch = 35.0f;
                         {
                             CmdSetpointPacket sp = { (int16_t)(state.target_pitch * 100), (int16_t)(state.target_roll * 100), 0 };
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_DOWN:
                     case SDLK_s:
-                        state.target_pitch -= 4.0f; // Pitch backward/down
+                        state.target_pitch -= 6.0f;
                         if (state.target_pitch < -35.0f) state.target_pitch = -35.0f;
                         {
                             CmdSetpointPacket sp = { (int16_t)(state.target_pitch * 100), (int16_t)(state.target_roll * 100), 0 };
@@ -123,8 +123,8 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_LEFT:
                     case SDLK_q:
-                        state.target_roll -= 4.0f; // Bank Left
-                        if (state.target_roll < -35.0f) state.target_roll = -35.0f;
+                        state.target_roll -= 6.0f;
+                        if (state.target_roll < -40.0f) state.target_roll = -40.0f;
                         {
                             CmdSetpointPacket sp = { (int16_t)(state.target_pitch * 100), (int16_t)(state.target_roll * 100), 0 };
                             serial_bridge_send(&bridge, MSG_CMD_SETPOINT, &sp, sizeof(sp));
@@ -132,8 +132,8 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_RIGHT:
                     case SDLK_e:
-                        state.target_roll += 4.0f; // Bank Right
-                        if (state.target_roll > 35.0f) state.target_roll = 35.0f;
+                        state.target_roll += 6.0f;
+                        if (state.target_roll > 40.0f) state.target_roll = 40.0f;
                         {
                             CmdSetpointPacket sp = { (int16_t)(state.target_pitch * 100), (int16_t)(state.target_roll * 100), 0 };
                             serial_bridge_send(&bridge, MSG_CMD_SETPOINT, &sp, sizeof(sp));

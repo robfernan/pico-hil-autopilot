@@ -78,10 +78,10 @@ void cockpit_update(CockpitState *state, float dt) {
             state->fast.altitude_cm += (0 - state->fast.altitude_cm) * dt * 4.0f;
         }
 
-        // Simulate attitude dynamics with gentle flight oscillations
+        // Simulate attitude dynamics with gentle flight oscillations + pilot steering
         float t = SDL_GetTicks() / 1000.0f;
-        float base_pitch = sinf(t * 1.2f) * 5.0f;
-        float base_roll  = cosf(t * 0.9f) * 7.0f;
+        float base_pitch = sinf(t * 1.2f) * 4.0f + state->target_pitch;
+        float base_roll  = cosf(t * 0.9f) * 5.0f + state->target_roll;
         
         if (state->injected_fault == FAULT_GYRO_BIAS) {
             base_roll += 24.0f; // drift to right
@@ -119,6 +119,10 @@ void cockpit_update(CockpitState *state, float dt) {
 static void render_artificial_horizon(SDL_Renderer *renderer, CockpitState *state, int cx, int cy, int radius) {
     float roll_deg  = (float)state->fast.roll / 100.0f;
     float pitch_deg = (float)state->fast.pitch / 100.0f;
+    if (state->is_hardware_connected) {
+        roll_deg  += state->target_roll;
+        pitch_deg += state->target_pitch;
+    }
     float roll_rad  = roll_deg * DEG_TO_RAD;
 
     // Outer Bezel

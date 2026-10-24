@@ -54,23 +54,31 @@ static void *serial_rx_thread(void *arg) {
     uint16_t received_crc = 0;
     uint8_t crc_bytes[2];
 
+    const char *candidates[] = {"/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2", "/dev/ttyUSB0"};
+    int num_candidates = 4;
+
     while (bridge->should_run) {
         if (!bridge->is_open) {
-            int fd = open(bridge->port, O_RDWR | O_NOCTTY | O_NDELAY);
-            if (fd >= 0) {
-                if (configure_serial(fd, B115200) == 0) {
-                    pthread_mutex_lock(&bridge->mutex);
-                    bridge->fd = fd;
-                    bridge->is_open = true;
-                    bridge->cockpit->is_hardware_connected = true;
-                    pthread_mutex_unlock(&bridge->mutex);
-                    printf("[SERIAL] Connected to Pico 2 W on %s\n", bridge->port);
-                } else {
-                    close(fd);
+            for (int c = 0; c < num_candidates; ++c) {
+                const char *candidate = candidates[c];
+                int fd = open(candidate, O_RDWR | O_NOCTTY | O_NDELAY);
+                if (fd >= 0) {
+                    if (configure_serial(fd, B115200) == 0) {
+                        pthread_mutex_lock(&bridge->mutex);
+                        bridge->fd = fd;
+                        strncpy(bridge->port, candidate, sizeof(bridge->port) - 1);
+                        bridge->is_open = true;
+                        bridge->cockpit->is_hardware_connected = true;
+                        pthread_mutex_unlock(&bridge->mutex);
+                        printf("[SERIAL] Connected to Pico 2 W on %s\n", candidate);
+                        break;
+                    } else {
+                        close(fd);
+                    }
                 }
             }
             if (!bridge->is_open) {
-                usleep(500000); // retry every 500ms
+                usleep(400000); // retry every 400ms
                 continue;
             }
         }

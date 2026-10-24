@@ -106,13 +106,17 @@ sudo apt update && sudo apt install -y build-essential cmake libsdl2-dev gcc-arm
 ./run_ground_station.sh
 ```
 
-**Controls:**
-- **`[SPACE]`** or **`[A]`** &rarr; Toggle **ARM / DISARM**
-- **`[1]`** &rarr; Inject **Gyro Bias / Drift** (triggers attitude deviation & failsafe)
-- **`[2]`** &rarr; Inject **Motor 3 Cutout** (simulates ESC burnout)
-- **`[3]`** &rarr; Inject **Link Timeout** (simulates telemetry loss)
-- **`[R]`** &rarr; **Reset / Clear Faults** (returns to nominal flight)
-- **`[ESC]`** &rarr; Exit
+**Flight & System Controls:**
+- **`[SPACE]`** or **`[A]`** &rarr; Toggle **ARM / DISARM** (spins up motors to hover thrust)
+- **`[LEFT Arrow]`** / **`[Q]`** &rarr; **Bank Left** (tilts artificial horizon counter-clockwise)
+- **`[RIGHT Arrow]`** / **`[E]`** &rarr; **Bank Right** (tilts artificial horizon clockwise)
+- **`[UP Arrow]`** / **`[W]`** &rarr; **Pitch Forward / Down**
+- **`[DOWN Arrow]`** / **`[S]`** &rarr; **Pitch Backward / Up**
+- **`[1]`** &rarr; Inject **Gyro Bias / Drift** (triggers attitude deviation & failsafe state transition)
+- **`[2]`** &rarr; Inject **Motor 3 Cutout** (simulates in-flight ESC burnout)
+- **`[3]`** &rarr; Inject **Link Timeout** (simulates telemetry loss & tests watchdog)
+- **`[R]`** &rarr; **Reset All** (clears faults and returns to level $0.0^\circ$ flight)
+- **`[ESC]`** &rarr; Exit Ground Station
 
 ### 3. Compile the RP2350 Firmware (`.uf2`)
 

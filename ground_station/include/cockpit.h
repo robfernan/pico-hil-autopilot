@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include "protocol.h"
 
-#define WINDOW_WIDTH  1080
-#define WINDOW_HEIGHT 680
+#define WINDOW_WIDTH  1024
+#define WINDOW_HEIGHT 620
 
 #define HISTORY_LEN 200
 

@@ -136,6 +136,15 @@ void hil_engine_handle_command(HilEngine *engine, uint8_t msg_id, const uint8_t 
             }
             break;
 
+        case MSG_CMD_SETPOINT:
+            if (len >= sizeof(CmdSetpointPacket)) {
+                const CmdSetpointPacket *cmd = (const CmdSetpointPacket *)payload;
+                engine->target_pitch = (float)cmd->target_pitch / 100.0f;
+                engine->target_roll  = (float)cmd->target_roll / 100.0f;
+                engine->target_yaw   = (float)cmd->target_yaw / 100.0f;
+            }
+            break;
+
         default:
             break;
     }

@@ -96,8 +96,48 @@ int main(int argc, char *argv[]) {
                     case SDLK_r:
                         cockpit_inject_fault(&state, FAULT_NONE);
                         state.fast.state = STATE_STANDBY_DISARMED;
+                        state.target_pitch = 0.0f;
+                        state.target_roll = 0.0f;
                         CmdInjectFaultPacket f0 = { FAULT_NONE, 0 };
                         serial_bridge_send(&bridge, MSG_CMD_INJECT_FAULT, &f0, sizeof(f0));
+                        CmdSetpointPacket sp_reset = { 0, 0, 0 };
+                        serial_bridge_send(&bridge, MSG_CMD_SETPOINT, &sp_reset, sizeof(sp_reset));
+                        break;
+                    case SDLK_UP:
+                    case SDLK_w:
+                        state.target_pitch += 4.0f; // Pitch forward/up
+                        if (state.target_pitch > 35.0f) state.target_pitch = 35.0f;
+                        {
+                            CmdSetpointPacket sp = { (int16_t)(state.target_pitch * 100), (int16_t)(state.target_roll * 100), 0 };
+                            serial_bridge_send(&bridge, MSG_CMD_SETPOINT, &sp, sizeof(sp));
+                        }
+                        break;
+                    case SDLK_DOWN:
+                    case SDLK_s:
+                        state.target_pitch -= 4.0f; // Pitch backward/down
+                        if (state.target_pitch < -35.0f) state.target_pitch = -35.0f;
+                        {
+                            CmdSetpointPacket sp = { (int16_t)(state.target_pitch * 100), (int16_t)(state.target_roll * 100), 0 };
+                            serial_bridge_send(&bridge, MSG_CMD_SETPOINT, &sp, sizeof(sp));
+                        }
+                        break;
+                    case SDLK_LEFT:
+                    case SDLK_q:
+                        state.target_roll -= 4.0f; // Bank Left
+                        if (state.target_roll < -35.0f) state.target_roll = -35.0f;
+                        {
+                            CmdSetpointPacket sp = { (int16_t)(state.target_pitch * 100), (int16_t)(state.target_roll * 100), 0 };
+                            serial_bridge_send(&bridge, MSG_CMD_SETPOINT, &sp, sizeof(sp));
+                        }
+                        break;
+                    case SDLK_RIGHT:
+                    case SDLK_e:
+                        state.target_roll += 4.0f; // Bank Right
+                        if (state.target_roll > 35.0f) state.target_roll = 35.0f;
+                        {
+                            CmdSetpointPacket sp = { (int16_t)(state.target_pitch * 100), (int16_t)(state.target_roll * 100), 0 };
+                            serial_bridge_send(&bridge, MSG_CMD_SETPOINT, &sp, sizeof(sp));
+                        }
                         break;
                 }
             }

@@ -208,6 +208,20 @@ bool serial_bridge_send(SerialBridge *bridge, uint8_t msg_id, const void *payloa
     packet[5 + len] = (uint8_t)(crc & 0xFF);
 
     ssize_t written = write(bridge->fd, packet, 6 + len);
+
+    // Also send ASCII single-character fallback
+    if (msg_id == MSG_CMD_ARM) {
+        char c = 'A';
+        write(bridge->fd, &c, 1);
+    } else if (msg_id == MSG_CMD_DISARM) {
+        char c = 'D';
+        write(bridge->fd, &c, 1);
+    } else if (msg_id == MSG_CMD_INJECT_FAULT && len > 0 && payload != NULL) {
+        uint8_t fault_type = *(const uint8_t *)payload;
+        char c = '0' + fault_type;
+        write(bridge->fd, &c, 1);
+    }
+
     pthread_mutex_unlock(&bridge->mutex);
     return (written == 6 + len);
 }

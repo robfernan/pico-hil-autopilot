@@ -91,6 +91,13 @@ typedef struct {
     float kd;
 } CmdSetPidPacket;
 
+// Command: Setpoint (Pitch/Roll/Yaw target angles in degrees * 100)
+typedef struct {
+    int16_t target_pitch;
+    int16_t target_roll;
+    int16_t target_yaw;
+} CmdSetpointPacket;
+
 // Command: Fault Injection
 typedef struct {
     uint8_t fault_type;   // HilFaultType

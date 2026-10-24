@@ -355,18 +355,18 @@ void cockpit_render(SDL_Renderer *renderer, CockpitState *state) {
     SDL_RenderClear(renderer);
 
     render_top_banner(renderer, state);
-    render_artificial_horizon(renderer, state, 220, 340, 160);
-    render_strip_chart(renderer, state, 460, 75, 590, 260);
-    render_motor_gauges(renderer, state, 460, 350, 590, 230);
+    render_artificial_horizon(renderer, state, 205, 305, 145);
+    render_strip_chart(renderer, state, 420, 68, 584, 230);
+    render_motor_gauges(renderer, state, 420, 312, 584, 215);
 
     // Bottom Control / Fault Deck
-    SDL_Rect deck = {20, 595, WINDOW_WIDTH - 40, 68};
+    SDL_Rect deck = {15, 542, WINDOW_WIDTH - 30, 64};
     SDL_SetRenderDrawColor(renderer, 18, 24, 32, 255);
     SDL_RenderFillRect(renderer, &deck);
     SDL_SetRenderDrawColor(renderer, 48, 60, 76, 255);
     SDL_RenderDrawRect(renderer, &deck);
 
-    draw_string(renderer, "PILOT COMMAND & FAULT INJECTION DECK:", 35, 606, 1, (SDL_Color){255, 214, 0, 255});
+    draw_string(renderer, "PILOT COMMAND & FAULT INJECTION DECK:", 30, 552, 1, (SDL_Color){255, 214, 0, 255});
 
     const char *active_fault_label = "FAULT: NONE (NOMINAL)";
     SDL_Color fcol = {0, 230, 118, 255};
@@ -380,10 +380,10 @@ void cockpit_render(SDL_Renderer *renderer, CockpitState *state) {
         active_fault_label = "FAULT: TELEMETRY DROPOUT (WDT TIMEOUT)";
         fcol = (SDL_Color){255, 60, 60, 255};
     }
-    draw_string(renderer, active_fault_label, 390, 606, 1, fcol);
+    draw_string(renderer, active_fault_label, 380, 552, 1, fcol);
 
     // Hotkey Buttons Guide
-    draw_string(renderer, "[SPACE/A] ARM/DISARM   [1] GYRO DRIFT   [2] CUT MOTOR 3   [3] LINK TIMEOUT   [R] RESET/CLEAR", 35, 634, 1, (SDL_Color){170, 195, 220, 255});
+    draw_string(renderer, "[SPACE/A] ARM   [ARROWS/W,S,Q,E] TILT PITCH/ROLL   [1] GYRO FAULT   [2] CUT MOTOR   [R] RESET", 20, 580, 1, (SDL_Color){170, 195, 220, 255});
 
     SDL_RenderPresent(renderer);
 }

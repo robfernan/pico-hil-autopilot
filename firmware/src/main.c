@@ -28,20 +28,83 @@ static void send_telemetry_packet(uint8_t msg_id, const void *payload, uint8_t l
         (uint8_t)(crc & 0xFF)
     };
 
+    fwrite(header, 1, 4, stdout);
+    if (len > 0 && payload != NULL) {
+        fwrite(payload, 1, len, stdout);
+    }
+    fwrite(crc_bytes, 1, 2, stdout);
+    fflush(stdout);
+}
+
+// Ingest binary packet from USB serial
+static void process_incoming_usb(void) {
 #ifdef PICO_BOARD
-    fwrite(header, 1, 4, stdout);
-    if (len > 0 && payload != NULL) {
-        fwrite(payload, 1, len, stdout);
+    static uint8_t rx_state = 0;
+    static uint8_t msg_id = 0;
+    static uint8_t len = 0;
+    static uint8_t idx = 0;
+    static uint8_t payload[64];
+    static uint8_t crc_bytes[2];
+
+    while (1) {
+        int c = getchar_timeout_us(0);
+        if (c == PICO_ERROR_TIMEOUT) break;
+
+        uint8_t b = (uint8_t)c;
+        switch (rx_state) {
+            case 0: // Seek Magic 0
+                if (b == PROTOCOL_MAGIC_0) rx_state = 1;
+                else if (b == 'A' || b == 'a') {
+                    hil_engine_handle_command(&g_engine, MSG_CMD_ARM, NULL, 0);
+                } else if (b == 'D' || b == 'd' || b == 'R' || b == 'r') {
+                    hil_engine_handle_command(&g_engine, MSG_CMD_DISARM, NULL, 0);
+                    physics_sim_inject_fault(&g_engine.sim, FAULT_NONE);
+                } else if (b == '1') {
+                    physics_sim_inject_fault(&g_engine.sim, FAULT_GYRO_BIAS);
+                } else if (b == '2') {
+                    physics_sim_inject_fault(&g_engine.sim, FAULT_MOTOR_3_CUT);
+                }
+                break;
+
+            case 1: // Seek Magic 1
+                if (b == PROTOCOL_MAGIC_1) rx_state = 2;
+                else rx_state = 0;
+                break;
+
+            case 2: // Msg ID
+                msg_id = b;
+                rx_state = 3;
+                break;
+
+            case 3: // Payload Length
+                len = b;
+                idx = 0;
+                if (len > sizeof(payload)) rx_state = 0;
+                else if (len == 0) rx_state = 5;
+                else rx_state = 4;
+                break;
+
+            case 4: // Payload Data
+                payload[idx++] = b;
+                if (idx >= len) {
+                    idx = 0;
+                    rx_state = 5;
+                }
+                break;
+
+            case 5: // CRC Bytes
+                crc_bytes[idx++] = b;
+                if (idx >= 2) {
+                    uint16_t expected_crc = ((uint16_t)crc_bytes[0] << 8) | crc_bytes[1];
+                    uint16_t computed_crc = protocol_crc16(payload, len);
+                    if (expected_crc == computed_crc) {
+                        hil_engine_handle_command(&g_engine, msg_id, payload, len);
+                    }
+                    rx_state = 0;
+                }
+                break;
+        }
     }
-    fwrite(crc_bytes, 1, 2, stdout);
-    fflush(stdout);
-#else
-    fwrite(header, 1, 4, stdout);
-    if (len > 0 && payload != NULL) {
-        fwrite(payload, 1, len, stdout);
-    }
-    fwrite(crc_bytes, 1, 2, stdout);
-    fflush(stdout);
 #endif
 }
 
@@ -60,6 +123,9 @@ void core1_entry(void) {
         uint32_t now_ms = (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 #endif
 
+        // Process incoming commands from USB CDC
+        process_incoming_usb();
+
         // 100 Hz Fast Telemetry
         if (now_ms - last_fast_tx >= 10) {
             last_fast_tx = now_ms;
@@ -73,16 +139,6 @@ void core1_entry(void) {
         }
 
 #ifdef PICO_BOARD
-        // Check for incoming commands from USB CDC
-        int c = getchar_timeout_us(100);
-        if (c != PICO_ERROR_TIMEOUT) {
-            // Handle incoming single-byte quick commands
-            if (c == 'A' || c == 'a') {
-                hil_engine_handle_command(&g_engine, MSG_CMD_ARM, NULL, 0);
-            } else if (c == 'D' || c == 'd') {
-                hil_engine_handle_command(&g_engine, MSG_CMD_DISARM, NULL, 0);
-            }
-        }
         sleep_us(500);
 #else
         usleep(1000);
@@ -130,7 +186,7 @@ int main(void) {
         sleep_us(1000);
 #else
         usleep(2000);
-        // For host testing, also step core1
+        process_incoming_usb();
         static uint32_t host_tx = 0;
         if (now_ms - host_tx >= 10) {
             host_tx = now_ms;

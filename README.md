@@ -1,141 +1,89 @@
-# Aero-RTOS HIL Autopilot & Telemetry Ground Station
+# Aero-RTOS HIL Autopilot
 
-An industrial-grade **Hardware-in-the-Loop (HIL)** flight dynamics supervisor and flight control computer running baremetal dual-core code on the Raspberry Pi Pico 2 W (**RP2350 Dual ARM Cortex-M33 @ 150 MHz**), interfaced via USB CDC to a real-time **SDL2 Primary Flight Display (PFD)** and diagnostic ground station running on Linux.
+Hardware-in-the-loop flight dynamics on a Raspberry Pi Pico 2 (**RP2350**): the chip integrates a quadrotor model, runs the attitude loop and safety state machine, and an **SDL2** ground station shows whether they hold when you arm, tilt, or inject a fault.
 
-![Aero-RTOS Ground Station Cockpit](docs/cockpit_screenshot.png)
+![Aero-RTOS ground station: artificial horizon, pitch and roll traces, and four motor gauges](docs/cockpit_screenshot.png)
 
----
+The panel is the scan a student pilot learns to read — horizon, heading, altitude, and a motor gauge that drops out — drawn from the same packets the firmware is computing. The cockpit runs on the bench by itself, and binds a Pico when one enumerates on USB.
 
-## Architecture Overview
+## Run the ground station
 
-```
-+-----------------------------------------------------------------------------------------+
-|                               PICO 2 W (RP2350 Baremetal C)                             |
-|                                                                                         |
-|  [CORE 0: Deterministic Dynamics & Control]    [CORE 1: Safety & Telemetry Broker]       |
-|  * High-Frequency Task (500 Hz / 2.0 ms):       * Asynchronous Task (100 Hz / 10.0 ms):  |
-|    - 6-DOF Dynamic Equations of Motion           - USB CDC Packet Framer (CRC16-CCITT)  |
-|    - Cascaded PID Attitude & Velocity Loop       - Hardware Watchdog Timer (500 ms)     |
-|    - Deterministic Safety State Machine:         - Fault Injection Engine (Simulate     |
-|      STANDBY -> ARMED -> FLIGHT -> FAILSAFE        sensor drift, motor cutoff)          |
-|                                                                                         |
-|                     <==== Inter-Core Shared Memory & Zero-Copy Structs ====>            |
-+-----------------------------------------------------------------------------------------+
-                                          |
-                              High-Speed USB CDC Serial
-                                          |
-+-----------------------------------------------------------------------------------------+
-|                                DEBIAN LINUX LAPTOP                                      |
-|                                                                                         |
-|  [Desktop Window: SDL2 Hardware-Accelerated Ground Control Station]                     |
-|  * Primary Flight Display (PFD): Artificial Horizon, Pitch Ladder, Heading & Alt Tapes |
-|  * Multi-channel strip chart: Real-time 60 FPS scrolling waveforms (Pitch / Roll)      |
-|  * 4-Channel Propulsion HUD: Motor PWM permille gauges with overload & cutout alerts   |
-|  * Interactive Pilot Deck: Live ARM/DISARM and Hardware Fault Injection Hotkeys        |
-+-----------------------------------------------------------------------------------------+
-```
-
----
-
-## Key Engineering Features
-
-- **Dual-Core Asymmetric Processing (RP2350 Cortex-M33):**
-  - **Core 0 (500 Hz):** Dedicated to deterministic numerical integration (6-DOF Euler kinematics, aerodynamic drag, motor thrust mixing) and cascaded PID loop calculation with anti-windup clamping and derivative low-pass filtering.
-  - **Core 1 (100 Hz):** Dedicated to asynchronous I/O, binary packet framing (`0xAA 0x55` sync words + CRC16-CCITT), background telemetry streaming, command ingestion, and hardware watchdog servicing.
-- **Hardware-in-the-Loop (HIL) Simulation:**
-  - Evaluates autopilot firmware behavior against a real-time mathematical vehicle model directly on the microcontroller, simulating sensor drift and ESC cutouts without requiring physical airframes.
-- **Deterministic Safety State Machine:**
-  - `STATE_STANDBY_DISARMED` &rarr; `STATE_ARMED` &rarr; `STATE_FLIGHT_NORMAL` &rarr; `STATE_FAILSAFE_ACTIVE` &rarr; `STATE_EMERGENCY_KILL`.
-  - Automatically commands a controlled descent upon excessive bank angle (>40°) or loss of telemetry link, and performs hard motor cutoff upon severe tumble (>75°).
-- **High-Performance Desktop Cockpit (SDL2 / Linux):**
-  - Native 60 FPS hardware-accelerated ground control station.
-  - Self-contained embedded 8x8 font rendering with zero runtime font dependencies.
-  - Multi-threaded asynchronous serial bridge with non-blocking POSIX termios read thread.
-  - Built-in fallback dynamic simulation allowing the desktop cockpit to run seamlessly with or without physical hardware plugged in.
-
----
-
-## Repository Structure
-
-```
-pico-hil-autopilot/
-├── build_firmware.sh          # One-click build script for RP2350 .uf2 firmware
-├── run_ground_station.sh       # One-click launch script for desktop Ground Station
-├── docs/                      # Screenshots, architecture diagrams, and protocol specs
-│   └── cockpit_screenshot.png
-├── firmware/                  # RP2350 Pico 2 W baremetal C firmware
-│   ├── CMakeLists.txt
-│   ├── include/
-│   │   ├── protocol.h         # Zero-copy binary packet definitions & CRC16-CCITT
-│   │   ├── state_machine.h    # Safety state machine definitions & thresholds
-│   │   ├── pid_controller.h   # Anti-windup PID controller with derivative filter
-│   │   ├── physics_sim.h      # 6-DOF dynamic equations of motion
-│   │   └── hil_engine.h       # Closed-loop HIL coordinator
-│   └── src/
-│       ├── main.c             # RP2350 multicore launch & watchdog init
-│       ├── state_machine.c    # Deterministic state transitions
-│       ├── pid_controller.c   # Cascaded PID loop implementation
-│       ├── physics_sim.c      # 6-DOF numerical physics solver
-│       └── hil_engine.c       # Control mixing & telemetry publisher
-└── ground_station/            # Linux desktop ground control station (SDL2 C)
-    ├── CMakeLists.txt
-    ├── include/
-    │   ├── cockpit.h          # PFD horizon, charts, gauges, and state structs
-    │   ├── font8x8_basic.h    # Embedded 8x8 monochrome bitmap font
-    │   ├── protocol.h         # Synced binary protocol header
-    │   └── serial_bridge.h    # POSIX non-blocking serial reader thread
-    └── src/
-        ├── main.c             # SDL2 window loop & hotkey handler
-        ├── cockpit.c          # Primary Flight Display & HUD rendering
-        └── serial_bridge.c    # Serial framing & CRC validation thread
-```
-
----
-
-## Quickstart & Building
-
-### 1. Prerequisites (Debian / Ubuntu)
+Debian or Ubuntu:
 
 ```bash
-sudo apt update && sudo apt install -y build-essential cmake libsdl2-dev gcc-arm-none-eabi libnewlib-arm-none-eabi
-```
-
-### 2. Launch the Desktop Ground Station
-
-```bash
+sudo apt update && sudo apt install -y build-essential cmake libsdl2-dev
 ./run_ground_station.sh
 ```
 
-**Flight & System Controls:**
-- **`[SPACE]`** or **`[A]`** &rarr; Toggle **ARM / DISARM** (spins up motors to hover thrust)
-- **`[LEFT Arrow]`** / **`[Q]`** &rarr; **Bank Left** (tilts artificial horizon counter-clockwise)
-- **`[RIGHT Arrow]`** / **`[E]`** &rarr; **Bank Right** (tilts artificial horizon clockwise)
-- **`[UP Arrow]`** / **`[W]`** &rarr; **Pitch Forward / Down**
-- **`[DOWN Arrow]`** / **`[S]`** &rarr; **Pitch Backward / Up**
-- **`[1]`** &rarr; Inject **Gyro Bias / Drift** (triggers attitude deviation & failsafe state transition)
-- **`[2]`** &rarr; Inject **Motor 3 Cutout** (simulates in-flight ESC burnout)
-- **`[3]`** &rarr; Inject **Link Timeout** (simulates telemetry loss & tests watchdog)
-- **`[R]`** &rarr; **Reset All** (clears faults and returns to level $0.0^\circ$ flight)
-- **`[ESC]`** &rarr; Exit Ground Station
+The first launch configures and builds `ground_station/`. Later launches start the cockpit directly.
 
-### 3. Compile the RP2350 Firmware (`.uf2`)
+| Key | What it does |
+| --- | --- |
+| `Space` / `A` | Arm or disarm. Armed flight uses a hover thrust mix. |
+| `Left` / `Q`, `Right` / `E` | Bank. Setpoints stop at ±40°. |
+| `Up` / `W`, `Down` / `S` | Pitch. Setpoints stop at ±35°. |
+| `1` | Gyro bias fault. |
+| `2` | Cut motor 3. |
+| `3` | Link-timeout fault. |
+| `R` | Clear the fault and level the stick setpoints. |
+| `Esc` | Quit. |
+
+## Flash the RP2350 firmware
+
+`./build_firmware.sh` looks for the [Pico SDK](https://github.com/raspberrypi/pico-sdk) at `PICO_SDK_PATH`, or at `~/.pico-sdk/pico-sdk` if that variable is unset. A normal Pico SDK toolchain (`gcc-arm-none-eabi`, newlib) has to be on `PATH`.
 
 ```bash
 ./build_firmware.sh
 ```
 
-The resulting binary will be created at:
-`firmware/build_rp2350/pico_hil_autopilot.uf2`
+The UF2 is written to `firmware/build_rp2350/pico_hil_autopilot.uf2`.
 
-To flash onto the Pico 2 W:
-1. Hold the **BOOTSEL** button on the Pico 2 W while plugging it into the USB port.
-2. Copy the `.uf2` file to the mounted `RP2350` drive:
-   ```bash
-   cp firmware/build_rp2350/pico_hil_autopilot.uf2 /media/$USER/RP2350/
-   ```
-3. The Pico 2 W will automatically reboot and enumerate as `/dev/ttyACM0`. The Ground Station will automatically detect the hardware and bind to the live USB stream!
+1. Hold **BOOTSEL** while plugging in the Pico 2 W.
+2. Copy the UF2 onto the drive that appears (the script uses `/media/$USER/RP2350/`):
 
----
+```bash
+cp firmware/build_rp2350/pico_hil_autopilot.uf2 /media/$USER/RP2350/
+```
+
+3. The board reboots as a USB serial device. The ground station scans `/dev/ttyACM0`–`2` and `/dev/ttyUSB0` and binds when one opens.
+
+## How the loop is split
+
+```
+Pico 2 / Pico 2 W — RP2350 bare-metal C
+  Core 0  dynamics and control
+          2 ms step: Euler attitude, body rates, vertical speed and altitude
+          cascaded PID (angle -> rate) and Quad-X motor mix
+          STANDBY -> ARMED -> FLIGHT -> FAILSAFE -> EMERGENCY_KILL
+  Core 1  USB CDC frames (0xAA 0x55, CRC-16-CCITT)
+          fast telemetry every 10 ms, slow status every 100 ms
+          hardware watchdog, 500 ms
+                    |
+                 USB CDC
+                    |
+Linux ground station — SDL2, accelerated renderer, vsync, ~16 ms frame delay
+  horizon, heading, altitude
+  pitch / roll strip chart
+  four motor gauges in PWM permille
+  arm, stick, and fault keys
+  local attitude display when no Pico is attached
+```
+
+On the chip, tilt past **40°** or a body rate past **250 deg/s** enters failsafe and the hover thrust is reduced. Past **75°** of roll or pitch the motors are cut until disarm.
+
+## Layout
+
+```
+pico-hil-autopilot/
+├── build_firmware.sh          # RP2350 UF2 build (needs the Pico SDK)
+├── run_ground_station.sh      # configure, build, and launch the cockpit
+├── docs/cockpit_screenshot.png
+├── firmware/                  # bare-metal C: model, PID, state machine, USB frames
+└── ground_station/            # SDL2 cockpit, embedded 8x8 font, serial reader thread
+```
+
+If this bench is useful, a star helps other people find it.
 
 ## License
-MIT License
+
+MIT
